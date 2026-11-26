@@ -6,7 +6,7 @@ use tokio::sync::mpsc;
 
 use crate::config;
 use crate::providers::cursor::connect::{
-    ConnectFrame, ConnectFrameDecoder, FLAG_END, FLAG_GZIP, encode_connect_frame,
+    ConnectEndError, ConnectFrame, ConnectFrameDecoder, FLAG_END, FLAG_GZIP, encode_connect_frame,
     parse_connect_error,
 };
 use crate::providers::cursor::continuation::{RunState, SharedRunState};
@@ -238,7 +238,10 @@ impl CursorHttpClient {
                         // The upstream closed the turn: a payload carries a
                         // Connect error, an empty one is a clean end.
                         let event = match parse_connect_error(&frame.payload) {
-                            Some(error) => LiveEvent::Error(error.to_string()),
+                            Some(error) => {
+                                log_connect_end_error(&error);
+                                LiveEvent::Error(error.to_string())
+                            }
                             None => LiveEvent::End,
                         };
                         let _ = event_tx.send(event).await;
@@ -449,6 +452,19 @@ impl CursorHttpClient {
             error_detail,
         })
     }
+}
+
+/// Log the whole Connect error that ended a live run.
+///
+/// The run already answered 200, so the request log records success and
+/// Claude Code only gets the short `message (code)` text. The `details` list
+/// in the raw payload is the only place the server says why it refused.
+fn log_connect_end_error(error: &ConnectEndError) {
+    let mut fields = serde_json::Map::new();
+    fields.insert("errorCode".into(), error.code.clone().into());
+    fields.insert("message".into(), error.message.clone().into());
+    fields.insert("detail".into(), error.detail.clone().into());
+    crate::logging::create_logger("cursor").warn("cursor_run_error", Some(fields));
 }
 
 fn encode_varint(mut value: u64, out: &mut Vec<u8>) {

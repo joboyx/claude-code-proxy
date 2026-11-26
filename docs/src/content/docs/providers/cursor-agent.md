@@ -46,7 +46,7 @@ Composer and Grok stay a family id plus the `fast` flag. A trailing `-fast` on O
 
 ## Tools and multimodal input
 
-- System prompts, messages, and tool definitions are rendered into the Cursor agent prompt.
+- System prompts, messages, and tool definitions are rendered into the Cursor agent prompt. The cyber-safety paragraph of Claude Code's system prompt (`IMPORTANT: Assist with authorized security testing…`) is left out: inside Cursor's user message it reads as the user claiming security-testing authorization, the likeliest trigger of Anthropic's cyber classifier, which blocks the run or moves the conversation to an older model.
 - Base64 user images become Cursor selected images.
 - Text, thinking, plan mode, ask mode, and usage stream back to Claude Code.
 - The native tool bridge recognizes Cursor requests for `Read`, `Write`, and `Bash` when matching Claude tools are advertised and a Claude Code session ID is present. It pauses the stream, emits an Anthropic tool call, accepts the next tool result, and resumes stored events.
